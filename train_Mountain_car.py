@@ -19,8 +19,11 @@ class Mountain:
         self.q_table = np.random.uniform(low=-2, high=0, size=(self.discrete_observation_size + [self.env.action_space.n]))
         self.episodes_reward_tracker = []
 
-    def set_parameters(self):
-        pass
+    def set_parameters(self,learning_rate=0.1, epsilon=0.5, epsilon_decay_end_range=2, discrete_window_size=20):
+        self.discrete_window_size = discrete_window_size
+        self.learning_rate = learning_rate
+        self.epsilon = epsilon
+        self.epsilon_decay_end_range = epsilon_decay_end_range
 
     def get_discrete_state(self, state):
         discrete_state = (state - self.env.observation_space.low) / self.discrete_observation_window_size
