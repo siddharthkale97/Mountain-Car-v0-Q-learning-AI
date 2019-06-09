@@ -1,6 +1,7 @@
 import gym
 import numpy as np
 import os.path
+import matplotlib.pyplot as plt
 
 
 class QTableListEmptyException(Exception):
@@ -28,7 +29,7 @@ class Mountain:
         self.discrete_observation_size = [self.discrete_window_size] * len(self.env.observation_space.high)
         self.discrete_observation_window_size = (self.env.observation_space.high - self.env.observation_space.low)/self.discrete_observation_size
         self.q_table = np.random.uniform(low=-2, high=0, size=(self.discrete_observation_size + [self.env.action_space.n]))
-        self.episodes_reward_tracker = []
+        self.episodes_reward_tracker = {'episodes': [], 'rewards': []}
         self.q_tables = []
 
     def set_parameters(self, learning_rate=0.1, epsilon=0.5, epsilon_decay_end_range=2, discrete_window_size=20):
@@ -41,7 +42,13 @@ class Mountain:
         discrete_state = (state - self.env.observation_space.low) / self.discrete_observation_window_size
         return tuple(discrete_state.astype(np.int))
 
-    def train(self, episodes=25000, render_every=500): #
+    def plot_episodes_rewards(self, episode_reward_tracker=None):
+        if episode_reward_tracker is None:
+            episode_reward_tracker = self.episodes_reward_tracker
+        plt.plot(episode_reward_tracker['episodes'], episode_reward_tracker['rewards'])
+        plt.show()
+
+    def train(self, episodes=25000, render_every=500):
         self.episodes = episodes
         for episode in range(self.episodes):
             episode_reward = 0
@@ -81,16 +88,18 @@ class Mountain:
             if self.end_epsilon_decay > episode >= 1:
                 self.epsilon -= self.epsilon_decay_rate
 
-            self.episodes_reward_tracker.append(episode_reward)
+            self.episodes_reward_tracker['episodes'].append(episode)
+            self.episodes_reward_tracker['rewards'].append(episode_reward)
             self.q_tables.append(self.q_table)
         self.env.close()
+        self.plot_episodes_rewards()
 
     def get_best_q_table(self):
         try:
             if len(self.q_tables) <= 0:
                 raise QTableListEmptyException()
             else:
-                return self.q_tables[self.episodes_reward_tracker.index(max(self.episodes_reward_tracker))]
+                return self.q_tables[self.episodes_reward_tracker['rewards'].index(max(self.episodes_reward_tracker))]
         except Exception as e:
             raise e
 
@@ -108,7 +117,7 @@ class Mountain:
             raise e
 
     def play_for_best_results(self, num_episodes=50, file_name=None):
-        reward_tracker_for_testing = []
+        reward_tracker_for_testing = {'episodes': [], 'rewards': []}
         if file_name is None:
             self.load_best_q_table()
         else:
@@ -122,17 +131,19 @@ class Mountain:
                 new_state, reward, done, _ = self.env.step(action)
                 episode_reward += reward
                 new_discrete_state = self.get_discrete_state(new_state)
-                self.env.render()
+                #self.env.render()
                 if new_state[0] >= 0.5:
                     print(f"Run successfully completed on it on episode {episode}")
                 discrete_state = new_discrete_state
 
-            reward_tracker_for_testing.append(episode_reward)
+            reward_tracker_for_testing['episodes'].append(episode)
+            reward_tracker_for_testing['rewards'].append(episode_reward)
         self.env.close()
+        self.plot_episodes_rewards(reward_tracker_for_testing)
 
 
 if __name__ == '__main__':
     trainer = Mountain()
+    trainer.train(5000, 500)
     trainer.play_for_best_results(num_episodes=50)
-    # trainer.train(5000, 500)
     # trainer.save_best_q_table()
