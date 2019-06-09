@@ -1,10 +1,16 @@
 import gym
 import numpy as np
+import os.path
 
 
 class QTableListEmptyException(Exception):
     def __init__(self):
         Exception.__init__(self, "Q tables are empty please train the model first using train function")
+
+
+class QTableFileDoesNotExists(Exception):
+    def __init__(self):
+        Exception.__init__(self, "File for Q table does not exists, please select other file!")
 
 
 class Mountain:
@@ -25,7 +31,7 @@ class Mountain:
         self.episodes_reward_tracker = []
         self.q_tables = []
 
-    def set_parameters(self,learning_rate=0.1, epsilon=0.5, epsilon_decay_end_range=2, discrete_window_size=20):
+    def set_parameters(self, learning_rate=0.1, epsilon=0.5, epsilon_decay_end_range=2, discrete_window_size=20):
         self.discrete_window_size = discrete_window_size
         self.learning_rate = learning_rate
         self.epsilon = epsilon
@@ -35,7 +41,7 @@ class Mountain:
         discrete_state = (state - self.env.observation_space.low) / self.discrete_observation_window_size
         return tuple(discrete_state.astype(np.int))
 
-    def train(self, episodes=25000, render_every=500):
+    def train(self, episodes=25000, render_every=500): #
         self.episodes = episodes
         for episode in range(self.episodes):
             episode_reward = 0
@@ -78,7 +84,7 @@ class Mountain:
             self.episodes_reward_tracker.append(episode_reward)
             self.q_tables.append(self.q_table)
         self.env.close()
-        
+
     def get_best_q_table(self):
         try:
             if len(self.q_tables) <= 0:
@@ -92,12 +98,21 @@ class Mountain:
         best_q_table = self.get_best_q_table()
         np.save(file_name, best_q_table)
 
-    def load_best_q_table(self, file_name="Best_Q_Table.npy"):#add exception for file not found
-        self.q_table = np.load(file_name)
+    def load_best_q_table(self, file_name="Best_Q_Table.npy"):
+        try:
+            if os.path.exists(file_name):
+                self.q_table = np.load(file_name)
+            else:
+                raise QTableFileDoesNotExists
+        except Exception as e:
+            raise e
 
-    def play_for_best_results(self, num_episodes=50):
+    def play_for_best_results(self, num_episodes=50, file_name=None):
         reward_tracker_for_testing = []
-        self.load_best_q_table()
+        if file_name is None:
+            self.load_best_q_table()
+        else:
+            self.load_best_q_table(file_name)
         for episode in range(num_episodes):
             episode_reward = 0
             discrete_state = self.get_discrete_state(self.env.reset())
@@ -118,6 +133,6 @@ class Mountain:
 
 if __name__ == '__main__':
     trainer = Mountain()
-    trainer.train()
-    trainer.save_best_q_table()
-    trainer.play_for_best_results()
+    trainer.play_for_best_results(num_episodes=50)
+    # trainer.train(5000, 500)
+    # trainer.save_best_q_table()
